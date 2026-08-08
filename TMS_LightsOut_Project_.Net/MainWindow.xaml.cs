@@ -11,6 +11,18 @@ namespace LightsOut.Wpf;
 public partial class MainWindow : Window
 {
     // =========================================================
+    // FIELDS
+    // =========================================================
+
+    /*
+     * Keeps track of how many samples are currently being solved.
+     *
+     * This is better than a simple bool because multiple sample
+     * Solve buttons can potentially be running at the same time.
+     */
+    private int _solvingCount;
+
+    // =========================================================
     // CONSTRUCTOR
     // =========================================================
 
@@ -29,6 +41,60 @@ public partial class MainWindow : Window
         object sender,
         RoutedEventArgs e)
     {
+        LoadSamplesFromFolder();
+    }
+
+    // =========================================================
+    // RESET ALL
+    // =========================================================
+
+    private void ResetAll_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        /*
+         * Do not rebuild the UI while one or more background
+         * solver operations are still running.
+         *
+         * Otherwise a running solver could finish and try to
+         * update a SampleContext that has already been removed.
+         */
+        if (_solvingCount > 0)
+        {
+            MessageBox.Show(
+                this,
+                "Please wait until all solving operations have finished.",
+                "Reset All",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            return;
+        }
+
+        /*
+         * Clear the current sample cards.
+         *
+         * This removes:
+         * - Existing solution boards
+         * - Coordinates
+         * - Status messages
+         * - Existing Solve buttons
+         * - Existing SampleContext objects
+         */
+        SamplesPanel.Children.Clear();
+
+        /*
+         * Restore the overall application status while
+         * the samples are being loaded again.
+         */
+        OverallStatusText.Text =
+            "Loading samples...";
+
+        /*
+         * Read all TXT files again from the Samples folder.
+         *
+         * Every TXT file is loaded as an independent puzzle.
+         */
         LoadSamplesFromFolder();
     }
 
@@ -711,8 +777,6 @@ public partial class MainWindow : Window
                 "Solution"));
 
         /*
-         * IMPORTANT:
-         *
          * No horizontal ScrollViewer.
          *
          * The solution uses WrapPanel so boards automatically
@@ -824,14 +888,27 @@ public partial class MainWindow : Window
 
         context.IsSolving = true;
 
+        /*
+         * Increase the number of active solver operations.
+         *
+         * Reset All uses this value to know whether it is safe
+         * to rebuild the sample UI.
+         */
+        _solvingCount++;
+
         button.IsEnabled = false;
 
         context.StatusText!.Text =
-            "Solving...";
+            "Solving Please wait....";
 
         context.StatusText.Foreground =
             (Brush)FindResource(
                 "DocumentBlueLight");
+
+        context.StatusText.FontSize = 20;
+
+        context.StatusText.FontWeight =
+            FontWeights.Bold;
 
         context.CoordinatesText!.Text =
             string.Empty;
@@ -939,6 +1016,17 @@ public partial class MainWindow : Window
             context.IsSolving = false;
 
             button.IsEnabled = true;
+
+            /*
+             * Decrease the active solver count.
+             *
+             * Math.Max prevents the value from ever becoming
+             * negative if something unexpected happens.
+             */
+            _solvingCount =
+                Math.Max(
+                    0,
+                    _solvingCount - 1);
         }
     }
 
@@ -1010,7 +1098,6 @@ public partial class MainWindow : Window
             /*
              * Keep the animation short.
              */
-
             await Task.Delay(80);
         }
     }
@@ -1427,9 +1514,13 @@ public partial class MainWindow : Window
         }
     }
 
+    // =========================================================
+    // SLOW SCROLL
+    // =========================================================
+
     private void SamplesScrollViewer_PreviewMouseWheel(
-    object sender,
-    MouseWheelEventArgs e)
+        object sender,
+        MouseWheelEventArgs e)
     {
         if (sender is not ScrollViewer scrollViewer)
             return;
@@ -1437,7 +1528,8 @@ public partial class MainWindow : Window
         // Smaller value = slower scrolling.
         const double scrollAmount = 30;
 
-        double offset = scrollViewer.VerticalOffset;
+        double offset =
+            scrollViewer.VerticalOffset;
 
         if (e.Delta < 0)
         {
@@ -1452,6 +1544,11 @@ public partial class MainWindow : Window
 
         e.Handled = true;
     }
+
+    // =========================================================
+    // SAMPLE CONTEXT
+    // =========================================================
+
     private sealed class SampleContext
     {
         public int SampleNumber { get; init; }
