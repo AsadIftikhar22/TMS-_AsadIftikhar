@@ -1,12 +1,13 @@
 <Window x:Class="LightsOut.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Asad Iftikhar Blue Rock Lights Out Assesment"
-        Width="1400"
-        Height="900"
-        MinWidth="1000"
-        MinHeight="700"
-        Background="#F5F6F8">
+        Title="Blue Rock Lights Out Solver"
+        Width="1200"
+        Height="800"
+        MinWidth="900"
+        MinHeight="600"
+        Background="#F5F7FA"
+        WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
 
@@ -34,6 +35,10 @@
 
         <SolidColorBrush x:Key="YellowState"
                          Color="#D6A72C"/>
+
+        <!-- ================================================= -->
+        <!-- BUTTON STYLE -->
+        <!-- ================================================= -->
 
         <Style TargetType="Button">
 
@@ -64,11 +69,14 @@
 
         <Grid.RowDefinitions>
 
+            <!-- Header -->
             <RowDefinition Height="Auto"/>
 
+            <!-- Samples -->
             <RowDefinition Height="*"/>
 
         </Grid.RowDefinitions>
+
 
         <!-- ================================================= -->
         <!-- HEADER -->
@@ -80,44 +88,77 @@
                 BorderThickness="0,0,0,1"
                 Padding="24">
 
-            <StackPanel>
+            <Grid>
 
-                <TextBlock Text="Blue Rock Lights Out Solver"
-                           FontSize="28"
-                           FontWeight="Bold"
-                           Foreground="#222222"/>
+                <Grid.ColumnDefinitions>
 
-                <TextBlock Text="Loading Lights Out puzzles from the Samples folder, with each .txt file loaded as a separate, independent puzzle sample."
-                           Margin="0,7,0,0"
-                           Foreground="#666666"
-                           FontSize="14"/>
+                    <!-- Header text -->
+                    <ColumnDefinition Width="*"/>
 
-                <TextBlock x:Name="OverallStatusText"
-                           Margin="0,8,0,0"
-                           Foreground="#4D86B7"
-                           FontWeight="SemiBold"/>
+                    <!-- Reset button -->
+                    <ColumnDefinition Width="Auto"/>
 
-            </StackPanel>
+                </Grid.ColumnDefinitions>
+
+
+                <!-- ========================================= -->
+                <!-- HEADER INFORMATION -->
+                <!-- ========================================= -->
+
+                <StackPanel Grid.Column="0">
+
+                    <TextBlock Text="Blue Rock Lights Out Solver"
+                               FontSize="28"
+                               FontWeight="Bold"
+                               Foreground="#222222"/>
+
+                    <TextBlock Text="Loading Lights Out puzzles from the Samples folder, with each .txt file loaded as a separate, independent puzzle sample."
+                               Margin="0,7,20,0"
+                               Foreground="#666666"
+                               FontSize="14"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock x:Name="OverallStatusText"
+                               Margin="0,8,0,0"
+                               Foreground="#4D86B7"
+                               FontWeight="SemiBold"/>
+
+                </StackPanel>
+
+
+                <!-- ========================================= -->
+                <!-- RESET ALL -->
+                <!-- ========================================= -->
+
+                <Button x:Name="ResetAllButton"
+                        Grid.Column="1"
+                        Content="Reset All"
+                        Width="120"
+                        Height="40"
+                        Margin="24,0,0,0"
+                        Padding="16,8"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Click="ResetAll_Click"/>
+
+            </Grid>
 
         </Border>
-        
-        <Button x:Name="ResetAllButton"
-                            Content="Reset All"
-                            Width="120"
-                            Height="38"
-                            HorizontalAlignment="Left"
-                            Margin="0,0,0,15"
-                            Click="ResetAll_Click"/>
-        
+
+
+        <!-- ================================================= -->
+        <!-- SAMPLES -->
+        <!-- ================================================= -->
+
         <ScrollViewer Grid.Row="1"
-              VerticalScrollBarVisibility="Auto"
-              HorizontalScrollBarVisibility="Disabled"
-              CanContentScroll="False"
-              PreviewMouseWheel="SamplesScrollViewer_PreviewMouseWheel">
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      CanContentScroll="False"
+                      PreviewMouseWheel="SamplesScrollViewer_PreviewMouseWheel">
 
             <StackPanel x:Name="SamplesPanel"
-                Margin="24"
-                HorizontalAlignment="Stretch"/>
+                        Margin="24"
+                        HorizontalAlignment="Stretch"/>
 
         </ScrollViewer>
 
