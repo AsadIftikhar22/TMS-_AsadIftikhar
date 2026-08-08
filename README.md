@@ -1,5 +1,10 @@
-Lights Out Application built using .Net 8 and Framework Windows Presentation Foundation (WPF) as Windows Desktop application Installer
-We have initially multiple test cases with multiple depths
+Lights Out Application
+
+A Lights Out puzzle-solving application built using .NET 8 and Windows Presentation Foundation (WPF) as a Windows desktop application.
+
+The application includes an installer and supports multiple test cases with different board configurations and depths.
+
+Test Cases
 
 **Problem #1**<br>
 
@@ -94,7 +99,7 @@ Cells  : - 48<br>
 Pieces : - 16_
 <br><br>
 **Solution Co-ordinates : - (1,0)  (4,4)  (1,1)  (1,1)  (3,3)  (2,0)  (2,2)  (0,1)  (1,0)  (5,3)  (0,0)  (2,0)  (4,1)  (3,3)  (0,3)  (2,2)**<br><br>
-**Solution: -**<br><br>
+**Solution: -**<br><br><img width="1765" height="1136" alt="image" src="https://github.com/user-attachments/assets/3629357c-3e0d-4cd8-8aef-9a381f2ce523" />
 
 
 **Problem #10**<br>
@@ -104,5 +109,6 @@ Boards : - 9 * 7 <br>
 Cells  : - 63<br>
 Pieces : - 17_
 <br><br>
-**Solution Co-ordinates : - (1,0)  (4,4)  (1,1)  (1,1)  (3,3)  (2,0)  (2,2)  (0,1)  (1,0)  (5,3)  (0,0)  (2,0)  (4,1)  (3,3)  (0,3)  (2,2)**<br><br>
-**Solution: -**<br><br><img width="1765" height="1136" alt="image" src="https://github.com/user-attachments/assets/3629357c-3e0d-4cd8-8aef-9a381f2ce523" />
+**Solution Co-ordinates : - (4,2)  (2,0)  (0,0)  (4,2)  (0,2)  (1,1)  (3,3)  (4,0)  (2,3)  (1,3)  (1,2)  (2,0)  (2,0)  (1,3)  (3,6)  (2,2)  (0,3)**<br><br>
+**Solution: -**<br><br><img width="1729" height="1132" alt="image" src="https://github.com/user-attachments/assets/54cb8d28-a544-41ce-928c-aa728630ee37" />
+
