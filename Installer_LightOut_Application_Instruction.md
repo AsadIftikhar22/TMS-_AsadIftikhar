@@ -21,7 +21,13 @@ Then:<br><br>
 2. Open the **LightsOut.Wpf.exe**
 3. It will execute the Desktop Application
 4. Execute the test cases provided by clicking on Solve
-5. For New test case simply add a new .txt file inside the **Samples Folder**
+5. For New test case simply add a new .txt file inside the **Samples Folder**<br><br>
+<img width="861" height="419" alt="image" src="https://github.com/user-attachments/assets/423cac8e-98ee-4bf3-b04f-e2b6eadf3ec2" />
+<br>
+<img width="950" height="898" alt="image" src="https://github.com/user-attachments/assets/e2263ab4-7c7e-4dda-abb7-c6637a45498e" />
+<br>
+It will open the Application
+<img width="1915" height="1152" alt="image" src="https://github.com/user-attachments/assets/b7504681-0b03-40f8-8bcc-6e191b31b68f" /><br>
 
 **Running through Code** <br>
 
