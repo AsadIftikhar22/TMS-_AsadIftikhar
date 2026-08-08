@@ -1,5 +1,10 @@
-Lights Out Application built using .Net 8 and Framework Windows Presentation Foundation (WPF) as Windows Desktop application Installer
-We have initially multiple test cases with multiple depths
+Lights Out Application
+
+A Lights Out puzzle-solving application built using .NET 8 and Windows Presentation Foundation (WPF) as a Windows desktop application.
+
+The application includes an installer and supports multiple test cases with different board configurations and depths.
+
+Test Cases
 
 **Problem #1**<br>
 
