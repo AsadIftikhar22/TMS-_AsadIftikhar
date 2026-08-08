@@ -25,11 +25,10 @@ public sealed class LightsOutSolver
     private long _branches;
     private long _conflicts;
 
-    private const int DefaultTimeLimitSeconds = 90;
+    private const int DefaultTimeLimitSeconds = 15;
 
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
+    // Extra time used only when the first solve times out.
+    private const int FallbackTimeLimitSeconds = 90;
 
     public LightsOutSolver(Puzzle puzzle)
         : this(puzzle, DefaultTimeLimitSeconds)
@@ -68,7 +67,8 @@ public sealed class LightsOutSolver
         _cellCount =
             checked(_height * _width);
 
-        if (_height <= 0 || _width <= 0)
+        if (_height <= 0 ||
+            _width <= 0)
         {
             throw new ArgumentException(
                 "Invalid board dimensions.");
@@ -80,7 +80,8 @@ public sealed class LightsOutSolver
                 "Maximum supported board size is 100 cells.");
         }
 
-        if (_depth < 2 || _depth > 5)
+        if (_depth < 2 ||
+            _depth > 5)
         {
             throw new ArgumentException(
                 "Depth must be between 2 and 5.");
@@ -115,11 +116,12 @@ public sealed class LightsOutSolver
             $"Pieces: {_pieceCount}\n" +
             $"Branches: {_branches:N0}\n" +
             $"Conflicts: {_conflicts:N0}\n" +
-            $"Elapsed: {_stopwatch.Elapsed.TotalSeconds:F2}s";
+            $"Elapsed: " +
+            $"{_stopwatch.Elapsed.TotalSeconds:F2}s";
     }
 
     // =========================================================
-    // SOLVE
+    // MAIN SOLVE
     // =========================================================
 
     public Solution? Solve()
@@ -132,204 +134,12 @@ public sealed class LightsOutSolver
 
         try
         {
-            CpModel model = new CpModel();
-
-            /*
-             * -------------------------------------------------
-             * PLACEMENT VARIABLES
-             * -------------------------------------------------
-             *
-             * variables[piece][placement]
-             *
-             * exactly one placement must be selected
-             * for every piece.
-             */
-
-            var variables =
-                new BoolVar[_pieceCount][];
-
-            for (int piece = 0;
-                 piece < _pieceCount;
-                 piece++)
-            {
-                int count =
-                    _placements[piece].Count;
-
-                variables[piece] =
-                    new BoolVar[count];
-
-                for (int placement = 0;
-                     placement < count;
-                     placement++)
-                {
-                    variables[piece][placement] =
-                        model.NewBoolVar(
-                            $"P_{piece}_{placement}");
-                }
-
-                /*
-                 * IMPORTANT:
-                 *
-                 * Do NOT use AddEquality().
-                 *
-                 * This works with the newer OR-Tools C#
-                 * API:
-                 */
-
-                model.AddExactlyOne(
-                    variables[piece]);
-            }
-
-            /*
-             * -------------------------------------------------
-             * CELL CONSTRAINTS
-             * -------------------------------------------------
-             *
-             * For every board cell:
-             *
-             * initial + number_of_hits = 0 (mod depth)
-             *
-             * Therefore:
-             *
-             * hits = required + depth * k
-             *
-             * where:
-             *
-             * required = (depth - initial) % depth
-             */
-
-            for (int cell = 0;
-                 cell < _cellCount;
-                 cell++)
-            {
-                var hittingVariables =
-                    new List<BoolVar>();
-
-                for (int piece = 0;
-                     piece < _pieceCount;
-                     piece++)
-                {
-                    for (int placement = 0;
-                         placement < _placements[piece].Count;
-                         placement++)
-                    {
-                        if (PlacementHitsCell(
-                                _placements[piece][placement],
-                                cell))
-                        {
-                            hittingVariables.Add(
-                                variables[piece][placement]);
-                        }
-                    }
-                }
-
-                int initialValue =
-                    GetInitialCellValue(cell);
-
-                int required =
-                    (_depth - initialValue) %
-                    _depth;
-
-                /*
-                 * No placement hits this cell.
-                 */
-
-                if (hittingVariables.Count == 0)
-                {
-                    if (required != 0)
-                    {
-                        /*
-                         * Impossible puzzle.
-                         */
-
-                        _stopwatch.Stop();
-
-                        _diagnostic =
-                            $"No solution exists.\n\n" +
-                            $"Cell {cell} requires " +
-                            $"{required} hit(s), but no piece " +
-                            $"can hit it.";
-
-                        return null;
-                    }
-
-                    continue;
-                }
-
-                /*
-                 * Hit count.
-                 */
-
-                int maximumHits =
-                    Math.Min(
-                        _pieceCount,
-                        hittingVariables.Count);
-
-                IntVar hitCount =
-                    model.NewIntVar(
-                        0,
-                        maximumHits,
-                        $"H_{cell}");
-
-                /*
-                 * -------------------------------------------------
-                 * IMPORTANT
-                 * -------------------------------------------------
-                 *
-                 * Instead of:
-                 *
-                 * model.AddEquality(...)
-                 *
-                 * use:
-                 *
-                 * model.Add(
-                 *     hitCount ==
-                 *     LinearExpr.Sum(...));
-                 */
-
-                model.Add(
-                    hitCount ==
-                    LinearExpr.Sum(
-                        hittingVariables));
-
-                /*
-                 * k can never need to be greater than
-                 * maximumHits / depth.
-                 */
-
-                int maxK =
-                    maximumHits / _depth;
-
-                IntVar k =
-                    model.NewIntVar(
-                        0,
-                        maxK,
-                        $"K_{cell}");
-
-                model.Add(
-                    hitCount ==
-                    LinearExpr.Constant(required) +
-                    _depth * k);
-            }
-
-            /*
-             * -------------------------------------------------
-             * SOLVER
-             * -------------------------------------------------
-             */
+            CpModel model =
+                BuildModel(out BoolVar[][] selected);
 
             CpSolver solver =
-                new CpSolver();
-
-            solver.StringParameters =
-                string.Join(
-                    " ",
-                    $"max_time_in_seconds:{_timeLimitSeconds}",
-                    "num_search_workers:8",
-                    "log_search_progress:false",
-                    "cp_model_presolve:true",
-                    "cp_model_probing_level:2",
-                    "symmetry_level:2");
+                CreateSolver(
+                    _timeLimitSeconds);
 
             CpSolverStatus status =
                 solver.Solve(model);
@@ -340,34 +150,144 @@ public sealed class LightsOutSolver
             _conflicts =
                 solver.NumConflicts();
 
-            _stopwatch.Stop();
+            // =================================================
+            // NORMAL SUCCESS
+            // =================================================
 
-            /*
-             * -------------------------------------------------
-             * STATUS
-             * -------------------------------------------------
-             */
-
-            if (status != CpSolverStatus.Optimal &&
-                status != CpSolverStatus.Feasible)
+            if (status == CpSolverStatus.Optimal ||
+                status == CpSolverStatus.Feasible)
             {
-                if (status == CpSolverStatus.Unknown)
+                Position[] positions =
+                    ExtractPositions(
+                        solver,
+                        selected);
+
+                _stopwatch.Stop();
+
+                //
+                // First try to create the complete diagram.
+                //
+                try
                 {
+                    Solution solution =
+                        CreateSolutionWithDiagram(
+                            positions);
+
                     _diagnostic =
-                        $"Solver timed out or returned " +
-                        $"an unknown result.\n\n" +
+                        $"Solved successfully.\n" +
                         $"Time: " +
                         $"{_stopwatch.Elapsed.TotalSeconds:F2}s\n" +
                         $"Branches: {_branches:N0}\n" +
-                        $"Conflicts: {_conflicts:N0}";
+                        $"Conflicts: {_conflicts:N0}\n" +
+                        $"Diagram: Yes";
 
-                    return null;
+                    return solution;
+                }
+                catch
+                {
+                    //
+                    // We already have a valid set of positions.
+                    //
+                    // If diagram creation fails, return the
+                    // answer without the diagram.
+                    //
+
+                    Solution solution =
+                        CreateSolutionWithoutDiagram(
+                            positions);
+
+                    _diagnostic =
+                        $"Solved successfully.\n" +
+                        $"Time: " +
+                        $"{_stopwatch.Elapsed.TotalSeconds:F2}s\n" +
+                        $"Branches: {_branches:N0}\n" +
+                        $"Conflicts: {_conflicts:N0}\n" +
+                        $"Diagram: No\n" +
+                        $"Solution positions returned only.";
+
+                    return solution;
+                }
+            }
+
+            // =================================================
+            // TIMEOUT / UNKNOWN
+            // =================================================
+
+            if (status == CpSolverStatus.Unknown)
+            {
+                //
+                // The first solve did not finish.
+                //
+                // Run a fallback solve.
+                //
+                _diagnostic =
+                    $"Initial solve timed out.\n" +
+                    $"Trying fallback search...";
+
+                CpModel fallbackModel =
+                    BuildModel(
+                        out BoolVar[][] fallbackSelected);
+
+                CpSolver fallbackSolver =
+                    CreateSolver(
+                        FallbackTimeLimitSeconds);
+
+                CpSolverStatus fallbackStatus =
+                    fallbackSolver.Solve(
+                        fallbackModel);
+
+                _branches +=
+                    fallbackSolver.NumBranches();
+
+                _conflicts +=
+                    fallbackSolver.NumConflicts();
+
+                if (fallbackStatus ==
+                        CpSolverStatus.Optimal ||
+                    fallbackStatus ==
+                        CpSolverStatus.Feasible)
+                {
+                    Position[] positions =
+                        ExtractPositions(
+                            fallbackSolver,
+                            fallbackSelected);
+
+                    _stopwatch.Stop();
+
+                    //
+                    // IMPORTANT:
+                    //
+                    // Do NOT build the diagram after a timeout.
+                    //
+                    // Return positions only.
+                    //
+
+                    Solution solution =
+                        CreateSolutionWithoutDiagram(
+                            positions);
+
+                    _diagnostic =
+                        $"Solved using fallback search.\n" +
+                        $"Initial search timed out.\n" +
+                        $"Time: " +
+                        $"{_stopwatch.Elapsed.TotalSeconds:F2}s\n" +
+                        $"Branches: {_branches:N0}\n" +
+                        $"Conflicts: {_conflicts:N0}\n" +
+                        $"Diagram: No\n" +
+                        $"Solution positions returned only.";
+
+                    return solution;
                 }
 
+                _stopwatch.Stop();
+
                 _diagnostic =
-                    $"No solution exists.\n\n" +
-                    $"OR-Tools status: {status}\n" +
-                    $"Time: " +
+                    $"Solver timed out.\n\n" +
+                    $"Initial time limit: " +
+                    $"{_timeLimitSeconds}s\n" +
+                    $"Fallback time limit: " +
+                    $"{FallbackTimeLimitSeconds}s\n" +
+                    $"Total time: " +
                     $"{_stopwatch.Elapsed.TotalSeconds:F2}s\n" +
                     $"Branches: {_branches:N0}\n" +
                     $"Conflicts: {_conflicts:N0}";
@@ -375,75 +295,21 @@ public sealed class LightsOutSolver
                 return null;
             }
 
-            /*
-             * -------------------------------------------------
-             * EXTRACT POSITIONS
-             * -------------------------------------------------
-             */
+            // =================================================
+            // INFEASIBLE
+            // =================================================
 
-            var positions =
-                new Position[_pieceCount];
-
-            for (int piece = 0;
-                 piece < _pieceCount;
-                 piece++)
-            {
-                int selected =
-                    -1;
-
-                for (int placement = 0;
-                     placement < variables[piece].Length;
-                     placement++)
-                {
-                    long value =
-                        solver.Value(
-                            variables[piece][placement]);
-
-                    if (value != 0)
-                    {
-                        selected =
-                            placement;
-
-                        break;
-                    }
-                }
-
-                if (selected < 0)
-                {
-                    throw new InvalidOperationException(
-                        $"OR-Tools returned no placement " +
-                        $"for piece {piece + 1}.");
-                }
-
-                positions[piece] =
-                    _placements[piece]
-                        [selected]
-                        .Position;
-            }
-
-            /*
-             * -------------------------------------------------
-             * BUILD SOLUTION
-             * -------------------------------------------------
-             */
-
-            Solution solution =
-                CreateSolution(
-                    positions);
-
-            /*
-             * CreateSolution performs a second
-             * independent verification.
-             */
+            _stopwatch.Stop();
 
             _diagnostic =
-                $"Solved successfully.\n" +
+                $"No solution exists.\n\n" +
+                $"OR-Tools status: {status}\n" +
                 $"Time: " +
                 $"{_stopwatch.Elapsed.TotalSeconds:F2}s\n" +
                 $"Branches: {_branches:N0}\n" +
                 $"Conflicts: {_conflicts:N0}";
 
-            return solution;
+            return null;
         }
         catch (Exception ex)
         {
@@ -455,6 +321,410 @@ public sealed class LightsOutSolver
 
             return null;
         }
+    }
+
+    // =========================================================
+    // BUILD MODEL
+    // =========================================================
+
+    private CpModel BuildModel(
+        out BoolVar[][] selected)
+    {
+        CpModel model =
+            new CpModel();
+
+        selected =
+            new BoolVar[_pieceCount][];
+
+        // =====================================================
+        // ONE BOOLEAN PER PLACEMENT
+        // =====================================================
+
+        for (int pieceIndex = 0;
+             pieceIndex < _pieceCount;
+             pieceIndex++)
+        {
+            int placementCount =
+                _placements[pieceIndex].Count;
+
+            selected[pieceIndex] =
+                new BoolVar[placementCount];
+
+            for (int placementIndex = 0;
+                 placementIndex < placementCount;
+                 placementIndex++)
+            {
+                selected[pieceIndex][placementIndex] =
+                    model.NewBoolVar(
+                        $"P{pieceIndex}_Placement{placementIndex}");
+            }
+
+            model.AddExactlyOne(
+                selected[pieceIndex]);
+        }
+
+        // =====================================================
+        // CELL CONSTRAINTS
+        // =====================================================
+
+        for (int cell = 0;
+             cell < _cellCount;
+             cell++)
+        {
+            var hits =
+                new List<BoolVar>();
+
+            for (int pieceIndex = 0;
+                 pieceIndex < _pieceCount;
+                 pieceIndex++)
+            {
+                for (int placementIndex = 0;
+                     placementIndex <
+                     _placements[pieceIndex].Count;
+                     placementIndex++)
+                {
+                    Placement placement =
+                        _placements[
+                            pieceIndex][
+                            placementIndex];
+
+                    if (Array.BinarySearch(
+                            placement.Cells,
+                            cell) >= 0)
+                    {
+                        hits.Add(
+                            selected[
+                                pieceIndex][
+                                placementIndex]);
+                    }
+                }
+            }
+
+            int initialValue =
+                GetInitialCellValue(cell);
+
+            // No piece can affect this cell.
+            if (hits.Count == 0)
+            {
+                if (initialValue != 0)
+                {
+                    model.Add(
+                        LinearExpr.Constant(1) == 0);
+                }
+
+                continue;
+            }
+
+            int requiredHits =
+                (
+                    _depth -
+                    initialValue
+                ) % _depth;
+
+            LinearExpr totalHits =
+                LinearExpr.Sum(hits);
+
+            IntVar remainder =
+                model.NewIntVar(
+                    0,
+                    _depth - 1,
+                    $"Remainder_{cell}");
+
+            model.AddModuloEquality(
+                remainder,
+                totalHits,
+                _depth);
+
+            model.Add(
+                remainder ==
+                requiredHits);
+        }
+
+        // =====================================================
+        // SYMMETRY
+        // =====================================================
+
+        AddIdenticalPieceSymmetryBreaking(
+            model,
+            selected);
+
+        return model;
+    }
+
+    // =========================================================
+    // CREATE SOLVER
+    // =========================================================
+
+    private static CpSolver CreateSolver(
+        int timeLimitSeconds)
+    {
+        CpSolver solver =
+            new CpSolver();
+
+        solver.StringParameters =
+            string.Join(
+                " ",
+                $"max_time_in_seconds:{timeLimitSeconds}",
+                "num_search_workers:8",
+                "log_search_progress:false",
+                "cp_model_presolve:true",
+                "cp_model_probing_level:2",
+                "symmetry_level:2",
+                "linearization_level:2",
+                "randomize_search:false");
+
+        return solver;
+    }
+
+    // =========================================================
+    // EXTRACT POSITIONS
+    // =========================================================
+
+    private Position[] ExtractPositions(
+        CpSolver solver,
+        BoolVar[][] selected)
+    {
+        var positions =
+            new Position[_pieceCount];
+
+        for (int pieceIndex = 0;
+             pieceIndex < _pieceCount;
+             pieceIndex++)
+        {
+            int selectedPlacementIndex =
+                -1;
+
+            for (int placementIndex = 0;
+                 placementIndex <
+                 selected[pieceIndex].Length;
+                 placementIndex++)
+            {
+                if (solver.Value(
+                        selected[
+                            pieceIndex][
+                            placementIndex]) >
+                    0)
+                {
+                    selectedPlacementIndex =
+                        placementIndex;
+
+                    break;
+                }
+            }
+
+            if (selectedPlacementIndex < 0)
+            {
+                throw new InvalidOperationException(
+                    $"No placement selected for " +
+                    $"piece {pieceIndex + 1}.");
+            }
+
+            positions[pieceIndex] =
+                _placements[
+                    pieceIndex][
+                    selectedPlacementIndex]
+                    .Position;
+        }
+
+        return positions;
+    }
+
+    // =========================================================
+    // NORMAL SOLUTION
+    // =========================================================
+
+    private Solution CreateSolutionWithDiagram(
+        Position[] positions)
+    {
+        if (positions.Length != _pieceCount)
+        {
+            throw new InvalidOperationException(
+                "Incorrect number of solution positions.");
+        }
+
+        var states =
+            new List<int[,]>(
+                _pieceCount + 1);
+
+        int[,] board =
+            CloneBoard(
+                _puzzle.InitialBoard);
+
+        states.Add(
+            CloneBoard(board));
+
+        for (int pieceIndex = 0;
+             pieceIndex < _pieceCount;
+             pieceIndex++)
+        {
+            ApplyPieceToBoard(
+                board,
+                _puzzle.Pieces[pieceIndex],
+                positions[pieceIndex]);
+
+            states.Add(
+                CloneBoard(board));
+        }
+
+        VerifyBoardSolved(board);
+
+        return new Solution(
+            positions,
+            states);
+    }
+
+    // =========================================================
+    // POSITIONS-ONLY SOLUTION
+    // =========================================================
+
+    private Solution CreateSolutionWithoutDiagram(
+        Position[] positions)
+    {
+        if (positions.Length != _pieceCount)
+        {
+            throw new InvalidOperationException(
+                "Incorrect number of solution positions.");
+        }
+
+        //
+        // Still verify the answer, but create only ONE board.
+        //
+
+        int[,] board =
+            CloneBoard(
+                _puzzle.InitialBoard);
+
+        for (int pieceIndex = 0;
+             pieceIndex < _pieceCount;
+             pieceIndex++)
+        {
+            ApplyPieceToBoard(
+                board,
+                _puzzle.Pieces[pieceIndex],
+                positions[pieceIndex]);
+        }
+
+        VerifyBoardSolved(board);
+
+        //
+        // Empty states means:
+        //
+        // "Do not render diagram."
+        //
+
+        return new Solution(
+            positions,
+            new List<int[,]>());
+    }
+
+    // =========================================================
+    // SYMMETRY BREAKING
+    // =========================================================
+
+    private void AddIdenticalPieceSymmetryBreaking(
+        CpModel model,
+        BoolVar[][] selected)
+    {
+        for (int firstPiece = 0;
+             firstPiece < _pieceCount;
+             firstPiece++)
+        {
+            for (int secondPiece = firstPiece + 1;
+                 secondPiece < _pieceCount;
+                 secondPiece++)
+            {
+                if (!PiecesAreIdentical(
+                        _puzzle.Pieces[firstPiece],
+                        _puzzle.Pieces[secondPiece]))
+                {
+                    continue;
+                }
+
+                int firstCount =
+                    selected[firstPiece].Length;
+
+                int secondCount =
+                    selected[secondPiece].Length;
+
+                int maxBoundary =
+                    Math.Min(
+                        firstCount,
+                        secondCount);
+
+                for (int boundary = 1;
+                     boundary < maxBoundary;
+                     boundary++)
+                {
+                    var firstHigh =
+                        new List<ILiteral>();
+
+                    for (int i = boundary;
+                         i < firstCount;
+                         i++)
+                    {
+                        firstHigh.Add(
+                            selected[
+                                firstPiece][i]);
+                    }
+
+                    var secondLow =
+                        new List<ILiteral>();
+
+                    for (int j = 0;
+                         j < boundary;
+                         j++)
+                    {
+                        secondLow.Add(
+                            selected[
+                                secondPiece][j]);
+                    }
+
+                    if (firstHigh.Count == 0 ||
+                        secondLow.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    model.AddAtMostOne(
+                        firstHigh
+                            .Concat(secondLow)
+                            .ToArray());
+                }
+            }
+        }
+    }
+
+    // =========================================================
+    // PIECE COMPARISON
+    // =========================================================
+
+    private static bool PiecesAreIdentical(
+        Piece first,
+        Piece second)
+    {
+        if (first.Height != second.Height ||
+            first.Width != second.Width)
+        {
+            return false;
+        }
+
+        for (int y = 0;
+             y < first.Height;
+             y++)
+        {
+            for (int x = 0;
+                 x < first.Width;
+                 x++)
+            {
+                if (first.Cells[y, x] !=
+                    second.Cells[y, x])
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     // =========================================================
@@ -581,77 +851,6 @@ public sealed class LightsOutSolver
         }
 
         return result;
-    }
-
-    // =========================================================
-    // HIT TEST
-    // =========================================================
-
-    private static bool PlacementHitsCell(
-        Placement placement,
-        int cell)
-    {
-        /*
-         * Cells are sorted.
-         *
-         * Binary search is much faster than
-         * scanning the complete array.
-         */
-
-        return Array.BinarySearch(
-            placement.Cells,
-            cell) >= 0;
-    }
-
-    // =========================================================
-    // CREATE SOLUTION
-    // =========================================================
-
-    private Solution CreateSolution(
-        Position[] positions)
-    {
-        if (positions.Length != _pieceCount)
-        {
-            throw new InvalidOperationException(
-                "Incorrect number of solution positions.");
-        }
-
-        var states =
-            new List<int[,]>(
-                _pieceCount + 1);
-
-        int[,] board =
-            CloneBoard(
-                _puzzle.InitialBoard);
-
-        states.Add(
-            CloneBoard(board));
-
-        for (int piece = 0;
-             piece < _pieceCount;
-             piece++)
-        {
-            Position position =
-                positions[piece];
-
-            ApplyPieceToBoard(
-                board,
-                _puzzle.Pieces[piece],
-                position);
-
-            states.Add(
-                CloneBoard(board));
-        }
-
-        /*
-         * Final independent verification.
-         */
-
-        VerifyBoardSolved(board);
-
-        return new Solution(
-            positions,
-            states);
     }
 
     // =========================================================
