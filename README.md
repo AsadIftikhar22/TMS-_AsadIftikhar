@@ -1,15 +1,15 @@
 Lights Out Application built using .Net 8 and Framework Windows Presentation Foundation (WPF) as Windows Desktop application Installer
 We have initially multiple test cases with multiple depths
 
-**Problem #1**
-<br>
+**Problem #1**<br>
+
 _Depths : - 2 <br>
 Boards : - 3 * 3 <br>
 Cells : - 9 <br>
 Pieces : - 7_ 
 <br>
 **Solution Co-ordinates : - (0,0) (1,0) (1,0) (0,0) (1,0) (0,1)**<br><br>
-**Solution: -** <img width="1841" height="815" alt="image" src="https://github.com/user-attachments/assets/9d5adc70-5954-4790-a797-16742c631e38" />
+**Solution: -<br><br>** <img width="1841" height="815" alt="image" src="https://github.com/user-attachments/assets/9d5adc70-5954-4790-a797-16742c631e38" />
 
 **Problem #2**
 <br>
@@ -19,7 +19,7 @@ Cells  :- 16<br>
 Pieces : - 7_
 <br>
 **Solution Co-ordinates : - (1,0)  (0,1)  (0,1)  (2,2)  (1,0)  (1,0)  (0,2)**<br><br>
-**Solution: -**  <img width="1883" height="891" alt="image" src="https://github.com/user-attachments/assets/8def7d01-c604-4f51-9503-e8ce44756146" />
+**Solution: -** <br><br> <img width="1883" height="891" alt="image" src="https://github.com/user-attachments/assets/8def7d01-c604-4f51-9503-e8ce44756146" />
 
 
 **Problem #3**
