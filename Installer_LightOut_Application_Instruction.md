@@ -33,5 +33,7 @@ Navigate to the **TMS_LightsOut_Project_.Net**<br>
 4. Open Project > Navigate to **TMS_LightsOut_Project_.Net** go to **.slnFile** select it.<br>
 5. Run Project Using Visual Studio
 6. For New test case simply add a new .txt file inside the **Samples Folder**
+<img width="1894" height="1110" alt="image" src="https://github.com/user-attachments/assets/4144d8c6-0732-431d-8399-45b027e4e4fe" /><br><br/>
+<img width="1919" height="1199" alt="image" src="https://github.com/user-attachments/assets/28a5218c-287b-41b3-b09d-8be09bff216b" />
 
 **The files specifically should be available inside Samples.txt In order to be executed.**
