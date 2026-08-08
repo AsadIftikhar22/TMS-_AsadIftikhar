@@ -4,131 +4,366 @@ namespace LightsOut.Wpf.Services;
 
 public static class PuzzleParser
 {
-    public static Puzzle Parse(string text)
+    public static Puzzle Parse(string input)
     {
-        if (string.IsNullOrWhiteSpace(text))
-            throw new ArgumentException("Puzzle input is empty.");
+        var puzzles = ParseMany(input);
 
-        string[] lines = text
-            .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim())
-            .ToArray();
+        if (puzzles.Count == 0)
+        {
+            throw new FormatException(
+                "No puzzle samples were found.");
+        }
 
-        if (lines.Length < 3)
-            throw new ArgumentException("The puzzle must contain exactly three logical lines: depth, board and pieces.");
+        return puzzles[0];
+    }
 
-        if (!int.TryParse(lines[0], out int depth) || depth is < 2 or > 4)
-            throw new ArgumentException("Depth must be 2, 3 or 4.");
+    public static IReadOnlyList<Puzzle> ParseMany(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            throw new ArgumentException(
+                "Input is empty.",
+                nameof(input));
+        }
 
-        string[] boardRows = lines[1]
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string normalized =
+            input
+                .Replace("\r\n", "\n")
+                .Replace('\r', '\n');
+
+        string[] blocks =
+            normalized
+                .Split(
+                    "\n\n",
+                    StringSplitOptions.RemoveEmptyEntries |
+                    StringSplitOptions.TrimEntries);
+
+        var puzzles = new List<Puzzle>();
+
+        /*
+         * Some of the supplied sample data contains more than one
+         * blank line between records. Normalize each block further.
+         */
+        foreach (string block in blocks)
+        {
+            string[] lines =
+                block
+                    .Split(
+                        '\n',
+                        StringSplitOptions.RemoveEmptyEntries |
+                        StringSplitOptions.TrimEntries);
+
+            if (lines.Length < 3)
+            {
+                continue;
+            }
+
+            puzzles.Add(ParseLines(lines));
+        }
+
+        /*
+         * If blank-line grouping did not work because the source
+         * text was copied with unusual whitespace, fall back to
+         * sequential parsing.
+         */
+        if (puzzles.Count == 0)
+        {
+            puzzles.AddRange(
+                ParseSequential(normalized));
+        }
+
+        return puzzles;
+    }
+
+    private static Puzzle ParseLines(
+        string[] lines)
+    {
+        if (!int.TryParse(
+                lines[0],
+                out int depth))
+        {
+            throw new FormatException(
+                $"Invalid depth '{lines[0]}'.");
+        }
+
+        if (depth < 2 || depth > 5)
+        {
+            throw new FormatException(
+                $"Invalid depth {depth}. " +
+                "Depth must be between 2 and 5.");
+        }
+
+        string[] boardRows =
+            lines[1]
+                .Split(
+                    ',',
+                    StringSplitOptions.RemoveEmptyEntries |
+                    StringSplitOptions.TrimEntries);
 
         if (boardRows.Length == 0)
-            throw new ArgumentException("Board is empty.");
+        {
+            throw new FormatException(
+                "Board contains no rows.");
+        }
 
-        int height = boardRows.Length;
-        int width = boardRows[0].Length;
+        int height =
+            boardRows.Length;
+
+        int width =
+            boardRows[0].Length;
 
         if (width == 0)
-            throw new ArgumentException("Board width is zero.");
+        {
+            throw new FormatException(
+                "Board width is zero.");
+        }
 
-        if (boardRows.Any(row => row.Length != width))
-            throw new ArgumentException("All board rows must have the same width.");
+        if (height * width > 100)
+        {
+            throw new FormatException(
+                $"Board contains {height * width} cells. " +
+                "Maximum supported size is 100 cells.");
+        }
 
-        int[,] board = new int[height, width];
+        var board =
+            new int[height, width];
 
         for (int y = 0; y < height; y++)
         {
+            string row =
+                boardRows[y];
+
+            if (row.Length != width)
+            {
+                throw new FormatException(
+                    $"Board row {y + 1} has " +
+                    $"{row.Length} characters. " +
+                    $"Expected {width}.");
+            }
+
             for (int x = 0; x < width; x++)
             {
-                char c = boardRows[y][x];
+                char c = row[x];
 
-                if (!char.IsDigit(c))
-                    throw new ArgumentException("Board cells must be digits.");
+                if (c < '0' ||
+                    c > '0' + depth - 1)
+                {
+                    throw new FormatException(
+                        $"Invalid board value '{c}' " +
+                        $"at ({x},{y}).");
+                }
 
-                int value = c - '0';
-
-                if (value >= depth)
-                    throw new ArgumentException($"Board value {value} is invalid for depth {depth}.");
-
-                board[y, x] = value;
+                board[y, x] =
+                    c - '0';
             }
         }
 
-        string[] pieceTokens = lines[2]
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        /*
+         * Everything after the board is a piece.
+         *
+         * Pieces are whitespace-separated.
+         * A piece itself contains comma-separated rows.
+         */
+        string pieceText =
+            string.Join(
+                " ",
+                lines.Skip(2));
 
-        if (pieceTokens.Length == 0)
-            throw new ArgumentException("At least one piece is required.");
+        string[] pieceStrings =
+            pieceText
+                .Split(
+                    ' ',
+                    StringSplitOptions.RemoveEmptyEntries |
+                    StringSplitOptions.TrimEntries);
 
-        List<Piece> pieces = pieceTokens.Select(ParsePiece).ToList();
-
-        return new Puzzle(depth, board, pieces);
-    }
-
-    public static string Format(Puzzle puzzle)
-    {
-        var boardRows = new List<string>();
-
-        for (int y = 0; y < puzzle.Height; y++)
+        if (pieceStrings.Length == 0)
         {
-            string row = string.Concat(
-                Enumerable.Range(0, puzzle.Width)
-                    .Select(x => puzzle.InitialBoard[y, x].ToString()));
-
-            boardRows.Add(row);
+            throw new FormatException(
+                "No pieces were found.");
         }
 
-        var pieceStrings = puzzle.Pieces.Select(piece =>
-        {
-            var rows = new List<string>();
+        var pieces =
+            new List<Piece>();
 
-            for (int y = 0; y < piece.Height; y++)
+        for (int i = 0;
+             i < pieceStrings.Length;
+             i++)
+        {
+            try
             {
-                string row = string.Concat(
-                    Enumerable.Range(0, piece.Width)
-                        .Select(x => piece.Cells[y, x] ? 'X' : '.'));
-
-                rows.Add(row);
+                pieces.Add(
+                    ParsePiece(
+                        pieceStrings[i]));
             }
+            catch (Exception ex)
+            {
+                throw new FormatException(
+                    $"Invalid piece {i + 1}.\n\n" +
+                    ex.Message,
+                    ex);
+            }
+        }
 
-            return string.Join(",", rows);
-        });
-
-        return $"{puzzle.Depth}{Environment.NewLine}" +
-               $"{string.Join(",", boardRows)}{Environment.NewLine}" +
-               $"{string.Join(" ", pieceStrings)}";
+        return new Puzzle(
+            depth,
+            board,
+            pieces);
     }
 
-    private static Piece ParsePiece(string input)
+    private static IReadOnlyList<Puzzle> ParseSequential(
+        string input)
     {
-        string[] rows = input.Split(
-            ',',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] lines =
+            input
+                .Split(
+                    '\n',
+                    StringSplitOptions.RemoveEmptyEntries |
+                    StringSplitOptions.TrimEntries);
+
+        var result =
+            new List<Puzzle>();
+
+        int index = 0;
+
+        while (index < lines.Length)
+        {
+            if (!int.TryParse(
+                    lines[index],
+                    out int depth))
+            {
+                index++;
+                continue;
+            }
+
+            if (index + 2 >= lines.Length)
+            {
+                break;
+            }
+
+            /*
+             * The structure of the supplied records is:
+             *
+             * depth
+             * board
+             * pieces
+             *
+             * The next numeric-only line begins the next record.
+             */
+            int start =
+                index;
+
+            index += 2;
+
+            while (index < lines.Length)
+            {
+                if (int.TryParse(
+                        lines[index],
+                        out _))
+                {
+                    break;
+                }
+
+                index++;
+            }
+
+            string[] block =
+                lines
+                    .Skip(start)
+                    .Take(index - start)
+                    .ToArray();
+
+            if (block.Length >= 3)
+            {
+                result.Add(
+                    ParseLines(block));
+            }
+        }
+
+        return result;
+    }
+
+    private static Piece ParsePiece(
+        string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new FormatException(
+                "Piece is empty.");
+        }
+
+        string[] rows =
+            text.Split(
+                ',',
+                StringSplitOptions.RemoveEmptyEntries |
+                StringSplitOptions.TrimEntries);
 
         if (rows.Length == 0)
-            throw new ArgumentException("Invalid piece.");
+        {
+            throw new FormatException(
+                "Piece contains no rows.");
+        }
 
-        int height = rows.Length;
-        int width = rows.Max(row => row.Length);
+        int height =
+            rows.Length;
+
+        int width =
+            rows[0].Length;
 
         if (width == 0)
-            throw new ArgumentException("Invalid piece width.");
-
-        bool[,] cells = new bool[height, width];
-
-        for (int y = 0; y < height; y++)
         {
-            for (int x = 0; x < rows[y].Length; x++)
+            throw new FormatException(
+                "Piece width is zero.");
+        }
+
+        var cells =
+            new bool[height, width];
+
+        bool hasActiveCell =
+            false;
+
+        for (int y = 0;
+             y < height;
+             y++)
+        {
+            if (rows[y].Length != width)
             {
-                cells[y, x] = rows[y][x] switch
-                {
-                    'X' => true,
-                    '.' => false,
-                    _ => throw new ArgumentException(
-                        $"Invalid piece character '{rows[y][x]}'.")
-                };
+                throw new FormatException(
+                    $"Piece row {y + 1} has " +
+                    $"{rows[y].Length} characters. " +
+                    $"Expected {width}.");
             }
+
+            for (int x = 0;
+                 x < width;
+                 x++)
+            {
+                char c =
+                    rows[y][x];
+
+                if (c == 'X' ||
+                    c == 'x')
+                {
+                    cells[y, x] = true;
+                    hasActiveCell = true;
+                }
+                else if (c == '.')
+                {
+                    cells[y, x] = false;
+                }
+                else
+                {
+                    throw new FormatException(
+                        $"Invalid character '{c}' " +
+                        $"at ({x},{y}). " +
+                        "Only X and . are allowed.");
+                }
+            }
+        }
+
+        if (!hasActiveCell)
+        {
+            throw new FormatException(
+                "Piece contains no X cells.");
         }
 
         return new Piece(cells);

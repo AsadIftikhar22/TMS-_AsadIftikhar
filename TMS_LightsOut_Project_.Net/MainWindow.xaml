@@ -1,286 +1,119 @@
 <Window x:Class="LightsOut.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Technical challenge — Lights out"
-        Width="1250"
+        Title="Lights Out Solver"
+        Width="1400"
         Height="900"
         MinWidth="1000"
-        MinHeight="720"
-        Background="White"
-        WindowStartupLocation="CenterScreen">
+        MinHeight="700"
+        Background="#F5F7FA">
 
     <Window.Resources>
-        <Style x:Key="CellBorder" TargetType="Border">
-            <Setter Property="BorderBrush" Value="#4D86B7"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Width" Value="42"/>
-            <Setter Property="Height" Value="42"/>
-            <Setter Property="Margin" Value="0"/>
+
+        <!-- ================================================= -->
+        <!-- COLORS -->
+        <!-- ================================================= -->
+
+        <SolidColorBrush x:Key="DocumentBlueLight"
+                         Color="#4D86B7"/>
+
+        <SolidColorBrush x:Key="TextBrush"
+                         Color="#222222"/>
+
+        <SolidColorBrush x:Key="MutedBrush"
+                         Color="#666666"/>
+
+        <SolidColorBrush x:Key="RedState"
+                         Color="#C94C4C"/>
+
+        <SolidColorBrush x:Key="GreenState"
+                         Color="#4CAF50"/>
+
+        <SolidColorBrush x:Key="BlueState"
+                         Color="#4D86B7"/>
+
+        <SolidColorBrush x:Key="YellowState"
+                         Color="#D6A72C"/>
+
+        <Style TargetType="Button">
+
+            <Setter Property="Padding"
+                    Value="20,9"/>
+
+            <Setter Property="Margin"
+                    Value="0,5,0,5"/>
+
+            <Setter Property="FontSize"
+                    Value="14"/>
+
+            <Setter Property="FontWeight"
+                    Value="SemiBold"/>
+
+            <Setter Property="Cursor"
+                    Value="Hand"/>
+
         </Style>
 
-        <Style x:Key="PieceCellBorder" TargetType="Border">
-            <Setter Property="BorderBrush" Value="#4D86B7"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="34"/>
-        </Style>
     </Window.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled">
-        <Grid Width="1050"
-              HorizontalAlignment="Center"
-              Margin="55,40,55,60">
+    <!-- ===================================================== -->
+    <!-- MAIN -->
+    <!-- ===================================================== -->
 
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+    <Grid>
 
-            <!-- Document title -->
-            <TextBlock Grid.Row="0"
-                       Text="ASAD IFTIKHAR Lights Out TMS Assesment"
-                       FontFamily="Segoe UI"
-                       FontSize="39"
-                       FontWeight="Normal"
-                       Foreground="{StaticResource DocumentBlue}"
-                       Margin="0,0,0,8"/>
+        <Grid.RowDefinitions>
 
-            <Border Grid.Row="1"
-                    Height="2"
-                    Background="{StaticResource DocumentBlue}"
-                    Margin="0,0,0,25"/>
+            <RowDefinition Height="Auto"/>
 
-            <!-- Intro -->
-            <TextBlock Grid.Row="2"
-                       Style="{StaticResource BodyText}"
-                       TextWrapping="Wrap"
-                       Margin="0,0,0,8">
-                <Run Text="Light Out Variation Assesment "/>
-                <Run Text="Each board cell has a state and each placed piece increments the cells it overlaps."/>
-            </TextBlock>
+            <RowDefinition Height="*"/>
 
-            <!-- Controls -->
-            <Border Grid.Row="3"
-                    BorderBrush="#D5D5D5"
-                    BorderThickness="1"
-                    Background="#FCFCFC"
-                    Padding="16"
-                    Margin="0,10,0,15">
+        </Grid.RowDefinitions>
 
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="85"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+        <!-- ================================================= -->
+        <!-- HEADER -->
+        <!-- ================================================= -->
 
-                    <TextBlock Grid.Column="0"
-                               Text="Depth:"
-                               FontFamily="Georgia"
-                               FontSize="16"
-                               VerticalAlignment="Center"
-                               Margin="0,0,10,0"/>
+        <Border Grid.Row="0"
+                Background="White"
+                BorderBrush="#DDDDDD"
+                BorderThickness="0,0,0,1"
+                Padding="24">
 
-                    <ComboBox x:Name="DepthComboBox"
-                              Grid.Column="1"
-                              Height="34"
-                              SelectedIndex="0"
-                              FontSize="15">
-                        <ComboBoxItem Content="2"/>
-                        <ComboBoxItem Content="3"/>
-                        <ComboBoxItem Content="4"/>
-                    </ComboBox>
+            <StackPanel>
 
-                    <TextBlock Grid.Column="2"/>
+                <TextBlock Text="Lights Out Solver"
+                           FontSize="28"
+                           FontWeight="Bold"
+                           Foreground="#222222"/>
 
-                    <Button Grid.Column="3"
-                            Content="Load Input"
-                            Style="{StaticResource OutlineButton}"
-                            Click="LoadInput_Click"/>
+                <TextBlock Text="Each sample is displayed independently with its own problem, pieces, solution and Solve button."
+                           Margin="0,7,0,0"
+                           Foreground="#666666"
+                           FontSize="14"/>
 
-                    <Button Grid.Column="4"
-                            Content="Reset"
-                            Style="{StaticResource OutlineButton}"
-                            Click="Reset_Click"/>
+                <TextBlock x:Name="OverallStatusText"
+                           Margin="0,8,0,0"
+                           Foreground="#4D86B7"
+                           FontWeight="SemiBold"/>
 
-                    <Button Grid.Column="5"
-                            Content="Solve Puzzle"
-                            Style="{StaticResource DocumentButton}"
-                            Click="Solve_Click"/>
-                </Grid>
-            </Border>
-
-            <!-- Input -->
-            <Grid Grid.Row="4" Margin="0,0,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*"/>
-                    <ColumnDefinition Width="24"/>
-                    <ColumnDefinition Width="1*"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Problem"
-                               Style="{StaticResource SectionHeading}"/>
-
-                    <TextBlock Style="{StaticResource BodyText}"
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,12">
-                        <Run Text="Enter the initial board and pieces using the same three-line format as the challenge."/>
-                    </TextBlock>
-
-                    <TextBox x:Name="InputTextBox"
-                             Style="{StaticResource InputBox}"
-                             Height="110"
-                             AcceptsReturn="True"
-                             VerticalScrollBarVisibility="Auto"
-                             TextChanged="InputTextBox_TextChanged"/>
-
-                    <TextBlock x:Name="InputStatusText"
-                               FontFamily="Georgia"
-                               FontSize="13"
-                               Foreground="{StaticResource MutedBrush}"
-                               Margin="0,7,0,0"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="States"
-                               Style="{StaticResource SectionHeading}"/>
-
-                    <TextBlock Style="{StaticResource BodyText}"
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,12">
-                        <Run Text="The colors represent the board states. State 0 is red, then green, blue and yellow."/>
-                    </TextBlock>
-
-                    <StackPanel Orientation="Horizontal">
-                        <StackPanel Margin="0,0,22,0">
-                            <Border Width="34" Height="34" CornerRadius="5" Background="{StaticResource RedState}"/>
-                            <TextBlock Text="0 · Red" FontFamily="Georgia" Margin="0,5,0,0"/>
-                        </StackPanel>
-
-                        <StackPanel Margin="0,0,22,0">
-                            <Border Width="34" Height="34" CornerRadius="5" Background="{StaticResource GreenState}"/>
-                            <TextBlock Text="1 · Green" FontFamily="Georgia" Margin="0,5,0,0"/>
-                        </StackPanel>
-
-                        <StackPanel Margin="0,0,22,0">
-                            <Border Width="34" Height="34" CornerRadius="5" Background="{StaticResource BlueState}"/>
-                            <TextBlock Text="2 · Blue" FontFamily="Georgia" Margin="0,5,0,0"/>
-                        </StackPanel>
-
-                        <StackPanel>
-                            <Border Width="34" Height="34" CornerRadius="5" Background="{StaticResource YellowState}"/>
-                            <TextBlock Text="3 · Yellow" FontFamily="Georgia" Margin="0,5,0,0"/>
-                        </StackPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Grid>
-
-            <!-- Board + pieces -->
-            <Grid Grid.Row="5" Margin="0,10,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="55"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Initial board"
-                               Style="{StaticResource SectionHeading}"/>
-                    <Border BorderBrush="{StaticResource DocumentBlueLight}"
-                            BorderThickness="2"
-                            Padding="7"
-                            HorizontalAlignment="Left">
-                        <Grid x:Name="BoardGrid"/>
-                    </Border>
-                    <TextBlock Text="board"
-                               FontFamily="Georgia"
-                               FontSize="15"
-                               HorizontalAlignment="Center"
-                               Margin="0,6,0,0"/>
-                </StackPanel>
-
-                <TextBlock Grid.Column="1"
-                           Text="→"
-                           FontSize="35"
-                           Foreground="{StaticResource DocumentBlueLight}"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Center"
-                           Margin="0,25,0,0"/>
-
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="Pieces"
-                               Style="{StaticResource SectionHeading}"/>
-
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Disabled">
-                        <StackPanel x:Name="PiecesPanel"
-                                    Orientation="Horizontal"/>
-                    </ScrollViewer>
-                </StackPanel>
-            </Grid>
-
-            <!-- Explanation -->
-            <TextBlock Grid.Row="6"
-                       Style="{StaticResource BodyText}"
-                       TextWrapping="Wrap"
-                       Margin="0,15,0,8">
-                <Run Text="Each time a piece is placed, every overlapping X cell increments the board cell. When a value reaches the selected depth it wraps to 0. The solver places every piece without rotation and keeps every piece within the board."/>
-            </TextBlock>
-
-            <!-- Solution -->
-            <StackPanel Grid.Row="7">
-                <TextBlock Text="Solution"
-                           Style="{StaticResource SectionHeading}"/>
-
-                <Border BorderBrush="#D5D5D5"
-                        BorderThickness="1"
-                        Padding="15"
-                        Background="#FCFCFC">
-
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <ScrollViewer Grid.Row="0"
-                                      HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Disabled">
-                            <StackPanel x:Name="SolutionStepsPanel"
-                                        Orientation="Horizontal"
-                                        HorizontalAlignment="Center"/>
-                        </ScrollViewer>
-
-                        <TextBlock Grid.Row="1"
-                                   x:Name="CoordinatesText"
-                                   FontFamily="Consolas"
-                                   FontSize="16"
-                                   Foreground="{StaticResource DocumentBlue}"
-                                   TextAlignment="Center"
-                                   Margin="0,18,0,10"/>
-
-                        <TextBlock Grid.Row="2"
-                                   x:Name="StatusText"
-                                   FontFamily="Georgia"
-                                   FontSize="15"
-                                   Foreground="{StaticResource MutedBrush}"
-                                   TextAlignment="Center"/>
-                    </Grid>
-                </Border>
             </StackPanel>
 
-        </Grid>
-    </ScrollViewer>
+        </Border>
+
+        <!-- ================================================= -->
+        <!-- SAMPLES -->
+        <!-- ================================================= -->
+
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
+
+            <StackPanel x:Name="SamplesPanel"
+                        Margin="24"/>
+
+        </ScrollViewer>
+
+    </Grid>
+
 </Window>

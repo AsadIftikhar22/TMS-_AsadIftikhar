@@ -10,4 +10,9 @@
     <RootNamespace>LightsOut.Wpf</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Google.OrTools" Version="9.15.6755" />
+    <PackageReference Include="Microsoft.Z3" Version="4.12.2" />
+  </ItemGroup>
+
 </Project>
