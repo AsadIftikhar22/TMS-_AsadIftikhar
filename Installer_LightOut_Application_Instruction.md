@@ -1,6 +1,6 @@
 **How to Install Lights Out Application**<br>
 
-**Please Clone the repository commands**<br>
+**Please Clone the repository using commands**<br>
 
 To clone your GitHub repository, use:<br>
 
