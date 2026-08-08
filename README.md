@@ -94,7 +94,7 @@ Cells  : - 48<br>
 Pieces : - 16_
 <br><br>
 **Solution Co-ordinates : - (1,0)  (4,4)  (1,1)  (1,1)  (3,3)  (2,0)  (2,2)  (0,1)  (1,0)  (5,3)  (0,0)  (2,0)  (4,1)  (3,3)  (0,3)  (2,2)**<br><br>
-**Solution: -**<br><br>
+**Solution: -**<br><br><img width="1765" height="1136" alt="image" src="https://github.com/user-attachments/assets/3629357c-3e0d-4cd8-8aef-9a381f2ce523" />**
 
 
 **Problem #10**<br>
