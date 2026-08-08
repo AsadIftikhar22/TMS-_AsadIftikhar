@@ -4,8 +4,8 @@
         Title="Lights Out Solver"
         Width="1400"
         Height="900"
-        MinWidth="900"
-        MinHeight="600"
+        MinWidth="1000"
+        MinHeight="700"
         Background="#F5F6F8">
 
     <Window.Resources>
@@ -35,10 +35,6 @@
         <SolidColorBrush x:Key="YellowState"
                          Color="#D6A72C"/>
 
-        <!-- ================================================= -->
-        <!-- BUTTON -->
-        <!-- ================================================= -->
-
         <Style TargetType="Button">
 
             <Setter Property="Padding"
@@ -60,7 +56,6 @@
 
     </Window.Resources>
 
-
     <!-- ===================================================== -->
     <!-- MAIN -->
     <!-- ===================================================== -->
@@ -74,7 +69,6 @@
             <RowDefinition Height="*"/>
 
         </Grid.RowDefinitions>
-
 
         <!-- ================================================= -->
         <!-- HEADER -->
@@ -93,11 +87,10 @@
                            FontWeight="Bold"
                            Foreground="#222222"/>
 
-                <TextBlock Text="Each sample is displayed independently with its own problem, pieces, solution and Solve button."
+                <TextBlock Text="Each TXT file in the Samples folder is loaded as one independent puzzle."
                            Margin="0,7,0,0"
                            Foreground="#666666"
-                           FontSize="14"
-                           TextWrapping="Wrap"/>
+                           FontSize="14"/>
 
                 <TextBlock x:Name="OverallStatusText"
                            Margin="0,8,0,0"
@@ -107,27 +100,16 @@
             </StackPanel>
 
         </Border>
-
-
-        <!-- ================================================= -->
-        <!-- SAMPLES -->
-        <!-- ================================================= -->
-
+        
         <ScrollViewer Grid.Row="1"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      CanContentScroll="True">
+              VerticalScrollBarVisibility="Auto"
+              HorizontalScrollBarVisibility="Disabled"
+              CanContentScroll="False"
+              PreviewMouseWheel="SamplesScrollViewer_PreviewMouseWheel">
 
-            <!-- Grid constrains content width so WrapPanel -->
-            <!-- can correctly calculate when to wrap. -->
-
-            <Grid HorizontalAlignment="Stretch">
-
-                <StackPanel x:Name="SamplesPanel"
-                            Margin="24,18,24,24"
-                            HorizontalAlignment="Stretch"/>
-
-            </Grid>
+            <StackPanel x:Name="SamplesPanel"
+                Margin="24"
+                HorizontalAlignment="Stretch"/>
 
         </ScrollViewer>
 

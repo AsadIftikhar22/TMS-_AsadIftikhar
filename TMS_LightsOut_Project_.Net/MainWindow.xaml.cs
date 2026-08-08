@@ -1,12 +1,9 @@
 using LightsOut.Wpf.Models;
 using LightsOut.Wpf.Services;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace LightsOut.Wpf;
@@ -36,7 +33,86 @@ public partial class MainWindow : Window
     }
 
     // =========================================================
-    // LOAD SAMPLES FROM /Samples
+    // FIND SAMPLES FOLDER
+    // =========================================================
+
+    private static string? FindSamplesFolder()
+    {
+        /*
+         * First look beside the executable.
+         *
+         * This is used when the application is published
+         * or when Samples has been copied to the output folder.
+         */
+
+        string applicationFolder =
+            AppContext.BaseDirectory;
+
+        string applicationSamples =
+            Path.Combine(
+                applicationFolder,
+                "Samples");
+
+        if (Directory.Exists(applicationSamples))
+        {
+            return applicationSamples;
+        }
+
+        /*
+         * During development the project folder may be:
+         *
+         * Project/
+         *     Samples/
+         *
+         * while the executable is:
+         *
+         * Project/
+         *     bin/
+         *         Debug/
+         *             net8.0-windows/
+         *
+         * Walk upward until Samples is found.
+         */
+
+        DirectoryInfo? current =
+            new DirectoryInfo(
+                applicationFolder);
+
+        while (current != null)
+        {
+            string candidate =
+                Path.Combine(
+                    current.FullName,
+                    "Samples");
+
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            current =
+                current.Parent;
+        }
+
+        /*
+         * Also check current working directory.
+         */
+
+        string workingSamples =
+            Path.Combine(
+                Environment.CurrentDirectory,
+                "Samples");
+
+        if (Directory.Exists(workingSamples))
+        {
+            return workingSamples;
+        }
+
+        return null;
+    }
+
+    // =========================================================
+    // LOAD ALL SAMPLE TXT FILES
     // =========================================================
 
     private void LoadSamplesFromFolder()
@@ -45,89 +121,65 @@ public partial class MainWindow : Window
 
         try
         {
-            string samplesFolder =
-                Path.Combine(
-                    AppContext.BaseDirectory,
-                    "Samples");
+            string? samplesFolder =
+                FindSamplesFolder();
 
-            if (!Directory.Exists(samplesFolder))
+            if (string.IsNullOrWhiteSpace(samplesFolder))
             {
                 OverallStatusText.Text =
-                    "Samples folder not found.";
+                    "Samples folder was not found.";
 
                 SamplesPanel.Children.Add(
-                    new TextBlock
-                    {
-                        Text =
-                            $"Create a Samples folder here:\n\n" +
-                            $"{samplesFolder}\n\n" +
-                            "Put one puzzle in each .txt file.",
-
-                        Foreground =
-                            Brushes.Firebrick,
-
-                        FontSize = 15,
-
-                        TextWrapping =
-                            TextWrapping.Wrap,
-
-                        Margin =
-                            new Thickness(10)
-                    });
+                    CreateErrorText(
+                        "Samples folder was not found.\n\n" +
+                        "Create this folder in your project:\n\n" +
+                        "Samples\\\n" +
+                        "    Sample1.txt\n" +
+                        "    Sample2.txt\n" +
+                        "    Sample3.txt\n\n" +
+                        "Each TXT file must contain one puzzle."
+                    ));
 
                 return;
             }
 
             string[] files =
-                Directory
-                    .GetFiles(
-                        samplesFolder,
-                        "*.txt",
-                        SearchOption.TopDirectoryOnly)
-                    .OrderBy(
-                        x => x,
-                        StringComparer.OrdinalIgnoreCase)
-                    .ToArray();
+                Directory.GetFiles(
+                    samplesFolder,
+                    "*.txt",
+                    SearchOption.TopDirectoryOnly);
 
             if (files.Length == 0)
             {
                 OverallStatusText.Text =
-                    "No sample .txt files found.";
+                    "No TXT sample files found.";
 
                 SamplesPanel.Children.Add(
-                    new TextBlock
-                    {
-                        Text =
-                            $"No .txt files were found in:\n\n" +
-                            samplesFolder,
-
-                        Foreground =
-                            Brushes.Firebrick,
-
-                        FontSize = 15,
-
-                        TextWrapping =
-                            TextWrapping.Wrap,
-
-                        Margin =
-                            new Thickness(10)
-                    });
+                    CreateErrorText(
+                        $"No .txt files were found in:\n\n" +
+                        $"{samplesFolder}"));
 
                 return;
             }
 
-            int loadedCount = 0;
+            /*
+             * Sort naturally by filename.
+             *
+             * Sample1.txt
+             * Sample2.txt
+             * Sample3.txt
+             */
 
-            var errors =
-                new List<string>();
+            Array.Sort(
+                files,
+                StringComparer.OrdinalIgnoreCase);
 
-            for (int i = 0;
-                 i < files.Length;
-                 i++)
+            int sampleNumber = 0;
+
+            int loaded = 0;
+
+            foreach (string file in files)
             {
-                string file =
-                    files[i];
-
                 try
                 {
                     string text =
@@ -135,123 +187,44 @@ public partial class MainWindow : Window
 
                     if (string.IsNullOrWhiteSpace(text))
                     {
-                        errors.Add(
-                            $"{Path.GetFileName(file)}: file is empty.");
-
                         continue;
                     }
 
-                    Puzzle puzzle =
-                        PuzzleParser.Parse(text);
+                    IReadOnlyList<Puzzle> puzzles =
+                        PuzzleParser.ParseMany(text);
 
-                    loadedCount++;
+                    /*
+                     * Normally one TXT file contains one puzzle.
+                     *
+                     * If a file contains multiple puzzles,
+                     * they will still be displayed individually.
+                     */
 
-                    AddSampleCard(
-                        loadedCount,
-                        Path.GetFileName(file),
-                        puzzle);
+                    foreach (Puzzle puzzle in puzzles)
+                    {
+                        sampleNumber++;
+
+                        AddSampleCard(
+                            sampleNumber,
+                            puzzle,
+                            Path.GetFileName(file));
+
+                        loaded++;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    errors.Add(
-                        $"{Path.GetFileName(file)}: {ex.Message}");
+                    sampleNumber++;
+
+                    AddFileErrorCard(
+                        sampleNumber,
+                        Path.GetFileName(file),
+                        ex);
                 }
             }
 
-            if (errors.Count == 0)
-            {
-                OverallStatusText.Text =
-                    $"{loadedCount} sample(s) loaded from Samples folder.";
-            }
-            else
-            {
-                OverallStatusText.Text =
-                    $"{loadedCount} sample(s) loaded. " +
-                    $"{errors.Count} file(s) could not be loaded.";
-
-                var errorPanel =
-                    new Border
-                    {
-                        Background =
-                            new SolidColorBrush(
-                                Color.FromRgb(
-                                    255,
-                                    245,
-                                    245)),
-
-                        BorderBrush =
-                            Brushes.Firebrick,
-
-                        BorderThickness =
-                            new Thickness(1),
-
-                        CornerRadius =
-                            new CornerRadius(6),
-
-                        Padding =
-                            new Thickness(12),
-
-                        Margin =
-                            new Thickness(
-                                0,
-                                0,
-                                0,
-                                15)
-                    };
-
-                var errorStack =
-                    new StackPanel();
-
-                errorStack.Children.Add(
-                    new TextBlock
-                    {
-                        Text =
-                            "Some sample files could not be loaded:",
-
-                        FontWeight =
-                            FontWeights.Bold,
-
-                        Foreground =
-                            Brushes.Firebrick,
-
-                        Margin =
-                            new Thickness(
-                                0,
-                                0,
-                                0,
-                                5)
-                    });
-
-                foreach (string error in errors)
-                {
-                    errorStack.Children.Add(
-                        new TextBlock
-                        {
-                            Text =
-                                "• " + error,
-
-                            Foreground =
-                                Brushes.Firebrick,
-
-                            TextWrapping =
-                                TextWrapping.Wrap,
-
-                            Margin =
-                                new Thickness(
-                                    0,
-                                    2,
-                                    0,
-                                    2)
-                        });
-                }
-
-                errorPanel.Child =
-                    errorStack;
-
-                SamplesPanel.Children.Insert(
-                    0,
-                    errorPanel);
-            }
+            OverallStatusText.Text =
+                $"{loaded} sample(s) loaded from Samples folder.";
         }
         catch (Exception ex)
         {
@@ -259,21 +232,87 @@ public partial class MainWindow : Window
                 "Failed to load samples.";
 
             SamplesPanel.Children.Add(
-                new TextBlock
-                {
-                    Text =
-                        ex.ToString(),
-
-                    Foreground =
-                        Brushes.Firebrick,
-
-                    TextWrapping =
-                        TextWrapping.Wrap,
-
-                    Margin =
-                        new Thickness(10)
-                });
+                CreateErrorText(
+                    ex.ToString()));
         }
+    }
+
+    // =========================================================
+    // ERROR TEXT
+    // =========================================================
+
+    private TextBlock CreateErrorText(
+        string text)
+    {
+        return new TextBlock
+        {
+            Text = text,
+
+            Foreground =
+                Brushes.Firebrick,
+
+            TextWrapping =
+                TextWrapping.Wrap,
+
+            Margin =
+                new Thickness(10),
+
+            FontSize = 14
+        };
+    }
+
+    // =========================================================
+    // FILE ERROR CARD
+    // =========================================================
+
+    private void AddFileErrorCard(
+        int sampleNumber,
+        string fileName,
+        Exception exception)
+    {
+        var border =
+            new Border
+            {
+                Background =
+                    Brushes.White,
+
+                BorderBrush =
+                    Brushes.Firebrick,
+
+                BorderThickness =
+                    new Thickness(1),
+
+                CornerRadius =
+                    new CornerRadius(8),
+
+                Padding =
+                    new Thickness(20),
+
+                Margin =
+                    new Thickness(
+                        0,
+                        0,
+                        0,
+                        15)
+            };
+
+        border.Child =
+            new TextBlock
+            {
+                Text =
+                    $"Sample {sampleNumber}\n\n" +
+                    $"File: {fileName}\n\n" +
+                    $"Error:\n{exception.Message}",
+
+                Foreground =
+                    Brushes.Firebrick,
+
+                TextWrapping =
+                    TextWrapping.Wrap
+            };
+
+        SamplesPanel.Children.Add(
+            border);
     }
 
     // =========================================================
@@ -282,8 +321,8 @@ public partial class MainWindow : Window
 
     private void AddSampleCard(
         int sampleNumber,
-        string fileName,
-        Puzzle puzzle)
+        Puzzle puzzle,
+        string fileName)
     {
         var outerBorder =
             new Border
@@ -312,7 +351,7 @@ public partial class MainWindow : Window
                         0,
                         0,
                         0,
-                        24)
+                        18)
             };
 
         var mainPanel =
@@ -364,24 +403,20 @@ public partial class MainWindow : Window
             new TextBlock
             {
                 Text =
-                    fileName,
+                    $"File: {fileName}",
 
                 Margin =
                     new Thickness(
                         0,
-                        3,
+                        4,
                         0,
                         0),
 
-                FontFamily =
-                    new FontFamily(
-                        "Consolas"),
-
-                FontSize = 13,
-
                 Foreground =
                     (Brush)FindResource(
-                        "DocumentBlueLight")
+                        "MutedBrush"),
+
+                FontSize = 13
             });
 
         titlePanel.Children.Add(
@@ -396,7 +431,7 @@ public partial class MainWindow : Window
                 Margin =
                     new Thickness(
                         0,
-                        5,
+                        4,
                         0,
                         0),
 
@@ -492,18 +527,7 @@ public partial class MainWindow : Window
         // INITIAL BOARD
         // =====================================================
 
-        var boardPanel =
-            new StackPanel
-            {
-                Margin =
-                    new Thickness(
-                        0,
-                        0,
-                        0,
-                        15)
-            };
-
-        boardPanel.Children.Add(
+        problemPanel.Children.Add(
             new TextBlock
             {
                 Text =
@@ -522,14 +546,11 @@ public partial class MainWindow : Window
                         8)
             });
 
-        boardPanel.Children.Add(
+        problemPanel.Children.Add(
             CreateBoardDiagram(
                 puzzle.InitialBoard,
                 puzzle.Depth,
                 false));
-
-        problemPanel.Children.Add(
-            boardPanel);
 
         // =====================================================
         // PIECES
@@ -549,7 +570,7 @@ public partial class MainWindow : Window
                 Margin =
                     new Thickness(
                         0,
-                        0,
+                        15,
                         0,
                         8)
             });
@@ -575,7 +596,7 @@ public partial class MainWindow : Window
                         new Thickness(
                             0,
                             0,
-                            14,
+                            12,
                             12)
                 };
 
@@ -601,7 +622,7 @@ public partial class MainWindow : Window
                     Margin =
                         new Thickness(
                             0,
-                            5,
+                            4,
                             0,
                             0)
                 });
@@ -689,22 +710,14 @@ public partial class MainWindow : Window
             CreateSectionTitle(
                 "Solution"));
 
-        var solutionScroll =
-            new ScrollViewer
-            {
-                HorizontalScrollBarVisibility =
-                    ScrollBarVisibility.Disabled,
-
-                VerticalScrollBarVisibility =
-                    ScrollBarVisibility.Disabled,
-
-                Margin =
-                    new Thickness(
-                        0,
-                        5,
-                        0,
-                        0)
-            };
+        /*
+         * IMPORTANT:
+         *
+         * No horizontal ScrollViewer.
+         *
+         * The solution uses WrapPanel so boards automatically
+         * move to the next row.
+         */
 
         var solutionPanel =
             new WrapPanel
@@ -716,11 +729,8 @@ public partial class MainWindow : Window
                     HorizontalAlignment.Left
             };
 
-        solutionScroll.Content =
-            solutionPanel;
-
         mainPanel.Children.Add(
-            solutionScroll);
+            solutionPanel);
 
         // =====================================================
         // CONTEXT
@@ -731,9 +741,6 @@ public partial class MainWindow : Window
             {
                 SampleNumber =
                     sampleNumber,
-
-                FileName =
-                    fileName,
 
                 Puzzle =
                     puzzle,
@@ -758,7 +765,7 @@ public partial class MainWindow : Window
             SolveSample_Click;
 
         // =====================================================
-        // ADD CARD
+        // ADD
         // =====================================================
 
         outerBorder.Child =
@@ -799,7 +806,7 @@ public partial class MainWindow : Window
     }
 
     // =========================================================
-    // SOLVE SAMPLE
+    // SOLVE
     // =========================================================
 
     private async void SolveSample_Click(
@@ -857,10 +864,6 @@ public partial class MainWindow : Window
                         };
                     });
 
-            // =================================================
-            // NO SOLUTION
-            // =================================================
-
             if (result.Solution == null)
             {
                 context.StatusText.Text =
@@ -871,7 +874,7 @@ public partial class MainWindow : Window
 
                 MessageBox.Show(
                     this,
-                    $"{context.FileName}\n\n" +
+                    $"Sample {context.SampleNumber}\n\n" +
                     result.Diagnostic,
                     "Lights Out Solver",
                     MessageBoxButton.OK,
@@ -879,10 +882,6 @@ public partial class MainWindow : Window
 
                 return;
             }
-
-            // =================================================
-            // VERIFY
-            // =================================================
 
             VerifySolution(
                 puzzle,
@@ -917,7 +916,7 @@ public partial class MainWindow : Window
                     "GreenState");
 
             OverallStatusText.Text =
-                $"{context.FileName} solved.";
+                $"Sample {context.SampleNumber} solved.";
         }
         catch (Exception ex)
         {
@@ -929,7 +928,7 @@ public partial class MainWindow : Window
 
             MessageBox.Show(
                 this,
-                $"{context.FileName}\n\n" +
+                $"Sample {context.SampleNumber}\n\n" +
                 ex,
                 "Lights Out Solver Error",
                 MessageBoxButton.OK,
@@ -966,7 +965,7 @@ public partial class MainWindow : Window
                         Text =
                             "→",
 
-                        FontSize = 30,
+                        FontSize = 24,
 
                         Foreground =
                             (Brush)FindResource(
@@ -977,9 +976,9 @@ public partial class MainWindow : Window
 
                         Margin =
                             new Thickness(
-                                8,
+                                6,
                                 0,
-                                8,
+                                6,
                                 0)
                     });
             }
@@ -1008,7 +1007,11 @@ public partial class MainWindow : Window
                     true,
                     caption));
 
-            await Task.Delay(100);
+            /*
+             * Keep the animation short.
+             */
+
+            await Task.Delay(80);
         }
     }
 
@@ -1029,8 +1032,8 @@ public partial class MainWindow : Window
                     new Thickness(
                         0,
                         0,
-                        5,
-                        0)
+                        4,
+                        8)
             };
 
         var grid =
@@ -1120,7 +1123,7 @@ public partial class MainWindow : Window
                     new Thickness(1),
 
                 Padding =
-                    new Thickness(5),
+                    new Thickness(4),
 
                 Child =
                     grid
@@ -1152,7 +1155,7 @@ public partial class MainWindow : Window
                     Margin =
                         new Thickness(
                             0,
-                            5,
+                            4,
                             0,
                             0)
                 });
@@ -1382,7 +1385,7 @@ public partial class MainWindow : Window
         {
             throw new InvalidOperationException(
                 "Solver returned an incorrect " +
-                "number of positions.");
+                "number of solution positions.");
         }
 
         if (solution.States == null ||
@@ -1424,16 +1427,34 @@ public partial class MainWindow : Window
         }
     }
 
-    // =========================================================
-    // SAMPLE CONTEXT
-    // =========================================================
+    private void SamplesScrollViewer_PreviewMouseWheel(
+    object sender,
+    MouseWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer scrollViewer)
+            return;
 
+        // Smaller value = slower scrolling.
+        const double scrollAmount = 30;
+
+        double offset = scrollViewer.VerticalOffset;
+
+        if (e.Delta < 0)
+        {
+            scrollViewer.ScrollToVerticalOffset(
+                offset + scrollAmount);
+        }
+        else
+        {
+            scrollViewer.ScrollToVerticalOffset(
+                offset - scrollAmount);
+        }
+
+        e.Handled = true;
+    }
     private sealed class SampleContext
     {
         public int SampleNumber { get; init; }
-
-        public string FileName { get; init; } =
-            string.Empty;
 
         public required Puzzle Puzzle { get; init; }
 
@@ -1441,7 +1462,7 @@ public partial class MainWindow : Window
 
         public TextBlock? CoordinatesText { get; init; }
 
-        public Panel? SolutionPanel { get; init; }
+        public WrapPanel? SolutionPanel { get; init; }
 
         public Button? SolveButton { get; init; }
 
